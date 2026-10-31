@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="Угадай число от 1 до 50: выбирай числа кликом и следуй подсказкам.">
+  <title>Угадай число — игра от 1 до 50</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #f6f8ff;
+      background: #0b1020;
+      --muted: #aeb8d0;
+      --line: rgba(174, 194, 235, .15);
+      --teal: #78e6d8;
+      --violet: #a994ff;
+      --gold: #ffd58a;
+      --title-gradient: linear-gradient(100deg, #b7a7ff 8%, #7be5d9 88%);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(ellipse 680px 520px at 4% 2%, rgba(77, 62, 163, .25), transparent 72%),
+        radial-gradient(ellipse 680px 580px at 94% 10%, rgba(17, 119, 139, .18), transparent 74%),
+        linear-gradient(145deg, #0b1020, #10162a 52%, #0c1222);
+    }
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      content: "";
+      opacity: .24;
+      background-image: radial-gradient(#9faad0 1px, transparent 1px);
+      background-size: 30px 30px;
+      mask-image: linear-gradient(to bottom, black, transparent 70%);
+    }
+    button { font: inherit; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #f7dfad; outline-offset: 3px; }
+    .shell { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }
+
+    .sound-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 12px; border: 1px solid #46516d; border-radius: 10px; color: #d9e3fb; background: #1a2238; font-size: 12px; font-weight: 750; transition: border-color .18s ease, background .18s ease; }
+    .sound-toggle:hover { border-color: #8295c0; background: #222d48; }
+    .sound-toggle[aria-pressed="false"] { color: #9aa7c1; }
+    .sound-icon { font-size: 16px; line-height: 1; }
+
+    main { padding: 22px 0 14px; }
+    .hero { text-align: center; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 9px; padding: 5px 11px;
+      border: 1px solid rgba(120, 230, 216, .25); border-radius: 10px;
+      background: rgba(26, 77, 90, .28); color: var(--teal);
+      font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase;
+    }
+    .eyebrow::before { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 13px var(--teal); content: ""; }
+    h1 { margin: 9px 0 6px; font-size: clamp(36px, 5.7vw, 64px); line-height: 1.08; letter-spacing: -.065em; }
+    h1 span { background: var(--title-gradient); background-clip: text; -webkit-text-fill-color: transparent; }
+    .intro { max-width: 800px; margin: 0 auto; color: var(--muted); font-size: clamp(14px, 1.4vw, 15px); line-height: 1.45; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; align-items: start; margin-top: 19px; }
+    .card { border: 1px solid var(--line); border-radius: 18px; background: rgba(27, 35, 59, .84); box-shadow: 0 24px 70px rgba(3, 7, 18, .28); backdrop-filter: blur(12px); }
+    .game-card { position: relative; overflow: hidden; padding: 20px; }
+    .game-card::before {
+      position: absolute; top: -125px; right: -115px; width: 310px; height: 310px; border-radius: 50%;
+      border: 1px solid rgba(171, 156, 255, .13); box-shadow: 0 0 0 52px rgba(171, 156, 255, .035), 0 0 0 105px rgba(171, 156, 255, .02);
+      content: ""; pointer-events: none;
+    }
+    .game-head, .board-intro, .history-head { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .overline { color: #96a5c5; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .range-pill { padding: 8px 11px; border: 1px solid rgba(120, 230, 216, .26); border-radius: 9px; color: #a1f0e6; background: rgba(64, 179, 172, .1); font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .board-intro { align-items: end; margin: 13px 0 11px; }
+    .board-intro h2 { margin: 0; font-size: clamp(21px, 2.4vw, 27px); letter-spacing: -.045em; }
+    .board-intro p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+    .remaining { color: #b9c4de; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .range-track { position: relative; height: 5px; margin-bottom: 11px; border-radius: 99px; background: #303b5c; overflow: hidden; }
+    .range-window { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--violet), var(--teal)); box-shadow: 0 0 18px #7fe6df99; transition: left .45s ease, width .45s ease; }
+    .number-grid { position: relative; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+    .number {
+      display: grid; place-items: center; min-width: 0; min-height: 45px; padding: 0;
+      border: 1px solid #536280; border-radius: 10px;
+      background: linear-gradient(155deg, #303c5b, #25314d); color: #f4f6ff;
+      font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums;
+      box-shadow: inset 0 1px rgba(255, 255, 255, .06), 0 5px 12px rgba(3, 8, 21, .12);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, opacity .3s ease, box-shadow .18s ease;
+    }
+    .number:not(:disabled):hover { transform: translateY(-3px); border-color: #9bdbdf; background: linear-gradient(155deg, #425c79, #344e69); box-shadow: 0 9px 18px #09132470; }
+    .number:active { transform: scale(.94); }
+    .number.outside { opacity: .23; border-color: #39435b; background: #1c253c; box-shadow: none; cursor: default; }
+    .number.picked { opacity: 1; color: #e0d0ff; border-color: #756ca6; background: #393759; box-shadow: 0 0 0 2px #cbbcff22; cursor: default; animation: pick .3s ease both; }
+    .number.winner { color: #0a282b; border-color: #a6fff0; background: linear-gradient(140deg, #b8fff0, #72dfd2); box-shadow: 0 0 24px #67efdb88; animation: win-pulse .8s ease both; }
+    @keyframes pick { 50% { transform: scale(1.11); } }
+    @keyframes win-pulse { 35% { transform: scale(1.2); } 70% { transform: scale(.95); } }
+
+    .feedback {
+      display: flex; align-items: center; gap: 11px; min-height: 56px; margin-top: 12px; padding: 9px 12px;
+      border: 1px solid #405070; border-radius: 11px; background: #1a2943;
+    }
+    .feedback-icon { display: grid; place-items: center; flex: 0 0 33px; width: 33px; height: 33px; border-radius: 9px; color: #b6d6ef; background: #334865; font-weight: 900; }
+    .feedback-text { display: block; font-size: 14px; font-weight: 700; line-height: 1.4; }
+    .feedback-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 500; }
+    .feedback.hint { border-color: #716997; background: #393759; }
+    .feedback.hint .feedback-icon { color: #e0d0ff; background: #514b78; }
+    .feedback.win { border-color: #4daca5; background: #173c46; }
+    .feedback.win .feedback-icon { color: #112e30; background: #8eeadd; }
+    .history-head { margin-top: 14px; }
+    .history-count { color: #8392b2; font-size: 12px; }
+    .history { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; margin: 8px 0 0; padding: 0; list-style: none; }
+    .history li { padding: 7px 10px; border-radius: 8px; color: #e0d0ff; background: #393759; font-size: 12px; font-weight: 800; }
+    .history li.win { color: #142f32; background: #8eeadd; }
+    .history .empty { padding: 0; color: #8290ad; background: none; font-weight: 500; }
+
+    .sidebar { display: grid; grid-template-rows: auto auto auto; align-content: start; gap: 14px; }
+    .sidebar > .sound-toggle { justify-self: end; }
+    .stats-card, .guide-card { padding: 18px; }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+    .stat { display: flex; align-items: flex-start; gap: 7px; }
+    .stat + .stat { padding-left: 10px; border-left: 1px solid var(--line); }
+    .stat strong { display: block; flex-shrink: 0; font-size: 37px; line-height: 1.05; letter-spacing: -.06em; }
+    .stat span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.25; white-space: nowrap; }
+    .guide-card { display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+    .guide-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #716ab0; border-radius: 9px; color: #c3b6ff; background: #48436f; font-size: 20px; }
+    .guide-card h2 { margin: 0; font-size: 21px; letter-spacing: -.04em; }
+    .guide-card p { grid-column: 1 / -1; margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .guide-card .tip { margin-top: 9px; color: #8eeadd; font-size: 12px; }
+    .new-game {
+      grid-column: 1 / -1; width: 100%; min-height: 47px; margin-top: 14px; padding: 10px 15px;
+      border: 1px solid #a6fff0; border-radius: 10px;
+      color: #142f32; background: var(--title-gradient);
+      font-size: 16px; font-weight: 800;
+      box-shadow: 0 8px 23px #68d9c933; transition: transform .18s ease, filter .18s ease;
+    }
+    .new-game:hover { transform: translateY(-2px); filter: brightness(1.13); }
+    .new-game:active { transform: scale(.98); }
+    .footer { padding: 0 0 14px; color: #7b89a8; text-align: center; font-size: 12px; }
+
+    .confetti { position: absolute; z-index: 3; top: 33%; left: 50%; width: 8px; height: 13px; border-radius: 2px; pointer-events: none; animation: confetti 1.6s ease-out forwards; }
+    @keyframes confetti { from { opacity: 1; transform: translate(0, 0) rotate(0); } to { opacity: 0; transform: translate(var(--x), var(--y)) rotate(var(--r)); } }
+
+    @media (max-width: 900px) {
+      .shell { width: calc(100% - 32px); }
+      .layout { grid-template-columns: minmax(0, 1fr) 224px; gap: 12px; }
+      .game-card, .stats-card, .guide-card { padding: 15px; }
+      .number-grid { gap: 5px; }
+      .guide-card h2 { font-size: 20px; }
+      .new-game { padding-inline: 8px; }
+    }
+    @media (min-width: 701px) and (max-width: 900px) {
+      .stats { grid-template-columns: 1fr; }
+      .stat + .stat { padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+    }
+    @media (min-width: 701px) and (max-height: 740px) {
+      main { padding: 12px 0 7px; }
+      .eyebrow { padding-block: 3px; }
+      h1 { margin: 5px 0 4px; }
+      .intro { font-size: 14px; line-height: 1.4; }
+      .layout { margin-top: 12px; }
+      .game-card { padding: 14px 18px; }
+      .range-pill { padding-block: 5px; }
+      .board-intro { margin: 9px 0 8px; }
+      .range-track { margin-bottom: 8px; }
+      .number { min-height: 41px; }
+      .feedback { margin-top: 10px; min-height: 52px; padding-block: 7px; }
+      .history-head { margin-top: 10px; }
+      .history { margin-top: 6px; }
+      .sidebar { gap: 10px; }
+      .stats-card, .guide-card { padding: 14px 16px; }
+      .stats { margin-top: 9px; }
+      .new-game { margin-top: 10px; }
+      .footer { padding-bottom: 8px; }
+    }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 28px, 520px); }
+      main { padding-top: 18px; }
+      h1 { font-size: clamp(35px, 9.5vw, 49px); }
+      .layout { grid-template-columns: 1fr; gap: 14px; margin-top: 18px; }
+      .game-card { padding: 18px 16px; }
+      .board-intro { align-items: start; margin-top: 16px; }
+      .board-intro h2 { font-size: 21px; }
+      .remaining { margin-top: 5px; }
+      .number-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+      .number { min-height: 46px; font-size: 15px; }
+      .sidebar { grid-template-columns: 1fr; gap: 14px; }
+      .stats-card, .guide-card { padding: 18px; }
+    }
+    @media (max-width: 380px) {
+      .board-intro { display: block; }
+      .remaining { display: block; margin-top: 8px; }
+      .number { min-height: 42px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+      .confetti { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <span class="eyebrow">Игра на логику</span>
+        <h1 id="title">Поймай число <span>мыслью</span></h1>
+        <p class="intro">Я загадал число от 1 до 50. Выбирай плитки, следуй подсказкам и найди ответ за минимум попыток.</p>
+      </section>
+
+      <div class="layout">
+        <section class="card game-card" id="game-card" aria-label="Игровое поле">
+          <div class="game-head"><span class="overline">Твой ход</span><span class="range-pill" id="range">Диапазон: 1–50</span></div>
+          <div class="board-intro">
+            <div><h2>Какое это число?</h2><p>Нажми на любую доступную плитку</p></div>
+            <span class="remaining" id="remaining">50 вариантов</span>
+          </div>
+          <div class="range-track" aria-hidden="true"><div class="range-window" id="range-window"></div></div>
+          <div class="number-grid" id="number-grid" role="group" aria-label="Выбери число от 1 до 50"></div>
+          <div class="feedback" id="feedback" role="status" aria-live="polite" aria-atomic="true">
+            <span class="feedback-icon" id="feedback-icon" aria-hidden="true">✦</span>
+            <div><span class="feedback-text" id="feedback-text">Число уже загадано. Твой ход!</span><span class="feedback-sub" id="feedback-sub">После выбора я подскажу, куда двигаться.</span></div>
+          </div>
+          <div class="history-head"><span class="overline">История попыток</span><span class="history-count" id="history-count">0 попыток</span></div>
+          <ul class="history" id="history"><li class="empty">Здесь появятся выбранные числа</li></ul>
+        </section>
+
+        <aside class="sidebar">
+          <button class="sound-toggle" id="sound-toggle" type="button" aria-pressed="true" aria-label="Отключить звук"><span class="sound-icon" id="sound-icon" aria-hidden="true">♫</span><span id="sound-label">Звук включён</span></button>
+          <section class="card stats-card" aria-label="Статистика">
+            <span class="overline">Твоя статистика</span>
+            <div class="stats"><div class="stat"><strong id="attempts">0</strong><span>попыток<br>сейчас</span></div><div class="stat"><strong id="best">—</strong><span>лучший<br>результат</span></div></div>
+          </section>
+          <section class="card guide-card">
+            <span class="guide-icon" aria-hidden="true">✦</span>
+            <h2>Как играть?</h2>
+            <p>После каждого выбора я скажу, больше или меньше загаданное число. Неподходящие плитки погаснут сами.</p>
+            <p class="tip">Подсказка: начни с середины диапазона.</p>
+            <button class="new-game" id="new-game" type="button">↻ &nbsp; Начать новую игру</button>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <footer class="footer">Каждая новая игра — новое число. Удачи!</footer>
+  </div>
+
+  <script>
+    (() => {
+      const MAX = 50;
+      const BEST_KEY = 'ugaday-chislo-best-1-50';
+      const grid = document.querySelector('#number-grid');
+      const gameCard = document.querySelector('#game-card');
+      const range = document.querySelector('#range');
+      const remaining = document.querySelector('#remaining');
+      const rangeWindow = document.querySelector('#range-window');
+      const feedback = document.querySelector('#feedback');
+      const feedbackIcon = document.querySelector('#feedback-icon');
+      const feedbackText = document.querySelector('#feedback-text');
+      const feedbackSub = document.querySelector('#feedback-sub');
+      const history = document.querySelector('#history');
+      const historyCount = document.querySelector('#history-count');
+      const attemptsEl = document.querySelector('#attempts');
+      const bestEl = document.querySelector('#best');
+      const newGame = document.querySelector('#new-game');
+      const soundToggle = document.querySelector('#sound-toggle');
+      const soundIcon = document.querySelector('#sound-icon');
+      const soundLabel = document.querySelector('#sound-label');
+      const tiles = [];
+      let secret, attempts, lower, upper, won, lastGuess;
+      let soundEnabled = true;
+      let audioContext = null;
+
+      function getAudioContext() {
+        if (!soundEnabled) return null;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        try {
+          audioContext ||= new AudioContextClass();
+          if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+          return audioContext;
+        } catch { return null; }
+      }
+
+      function tone(frequency, offset = 0, duration = .12, endingFrequency = null) {
+        const context = getAudioContext();
+        if (!context) return;
+        const start = context.currentTime + offset;
+        const oscillator = context.createOscillator();
+        const volume = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, start);
+        if (endingFrequency) oscillator.frequency.exponentialRampToValueAtTime(endingFrequency, start + duration);
+        volume.gain.setValueAtTime(.0001, start);
+        volume.gain.exponentialRampToValueAtTime(.045, start + .012);
+        volume.gain.exponentialRampToValueAtTime(.0001, start + duration);
+        oscillator.connect(volume);
+        volume.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + duration + .015);
+      }
+
+      function playHint(direction) {
+        tone(440, 0, .06);
+        if (direction === 'higher') {
+          tone(523, .07, .12);
+          tone(659, .17, .15);
+        } else {
+          tone(523, .07, .12);
+          tone(392, .17, .15);
+        }
+      }
+
+      function playWin() {
+        [523, 659, 784, 1047].forEach((frequency, index) => tone(frequency, index * .11, .24));
+      }
+
+      function playNewGame() {
+        tone(440, 0, .09);
+        tone(587, .08, .12);
+      }
+
+      function randomNumber() {
+        if (window.crypto?.getRandomValues) {
+          const value = new Uint32Array(1);
+          const limit = Math.floor(0x100000000 / MAX) * MAX;
+          do { window.crypto.getRandomValues(value); } while (value[0] >= limit);
+          return value[0] % MAX + 1;
+        }
+        return Math.floor(Math.random() * MAX) + 1;
+      }
+
+      function plural(number, one, few, many) {
+        const last = number % 10;
+        const lastTwo = number % 100;
+        return last === 1 && lastTwo !== 11 ? one : last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? few : many;
+      }
+
+      function bestScore() {
+        try {
+          const value = Number(localStorage.getItem(BEST_KEY));
+          return Number.isInteger(value) && value > 0 ? value : null;
+        } catch { return null; }
+      }
+
+      function setFeedback(type, icon, title, detail) {
+        feedback.className = `feedback ${type}`.trim();
+        feedbackIcon.textContent = icon;
+        feedbackText.textContent = title;
+        feedbackSub.textContent = detail;
+      }
+
+      function updateBoard() {
+        const available = won ? 0 : upper - lower + 1;
+        range.textContent = won ? 'Число найдено!' : `Диапазон: ${lower}–${upper}`;
+        remaining.textContent = won ? 'Победа!' : `${available} ${plural(available, 'вариант', 'варианта', 'вариантов')}`;
+        rangeWindow.style.left = `${(lower - 1) / MAX * 100}%`;
+        rangeWindow.style.width = `${available / MAX * 100}%`;
+
+        for (let number = 1; number <= MAX; number++) {
+          const tile = tiles[number - 1];
+          const isPicked = number === lastGuess;
+          tile.disabled = won || number < lower || number > upper;
+          tile.className = `number${isPicked ? won ? ' winner' : ' picked' : tile.disabled ? ' outside' : ''}`;
+          tile.setAttribute('aria-label', won && number === secret ? `Число ${number}, угадано` : `Число ${number}`);
+        }
+      }
+
+      function celebrate() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const colors = ['#78e6d8', '#b7a7ff', '#ffd58a', '#f4f7ff'];
+        for (let i = 0; i < 28; i++) {
+          const piece = document.createElement('span');
+          piece.className = 'confetti';
+          piece.style.background = colors[i % colors.length];
+          piece.style.setProperty('--x', `${Math.random() * 520 - 260}px`);
+          piece.style.setProperty('--y', `${Math.random() * 330 - 145}px`);
+          piece.style.setProperty('--r', `${Math.random() * 900 - 450}deg`);
+          piece.style.animationDelay = `${Math.random() * .16}s`;
+          gameCard.append(piece);
+          piece.addEventListener('animationend', () => piece.remove(), { once: true });
+        }
+      }
+
+      function guess(number) {
+        if (won || number < lower || number > upper) return;
+        tone(440, 0, .055);
+        attempts++;
+        lastGuess = number;
+        attemptsEl.textContent = attempts;
+        historyCount.textContent = `${attempts} ${plural(attempts, 'попытка', 'попытки', 'попыток')}`;
+        if (attempts === 1) history.replaceChildren();
+
+        const item = document.createElement('li');
+        if (number === secret) {
+          won = true;
+          item.className = 'win';
+          item.textContent = `${number} ✓`;
+          const best = bestScore();
+          if (best === null || attempts < best) {
+            try { localStorage.setItem(BEST_KEY, String(attempts)); } catch { /* Storage is optional. */ }
+            bestEl.textContent = attempts;
+          }
+          setFeedback('win', '✓', `Верно! Я загадал ${secret}.`, `Ты справился за ${attempts} ${plural(attempts, 'попытку', 'попытки', 'попыток')}. Сыграем ещё?`);
+          playWin();
+          celebrate();
+        } else if (number < secret) {
+          lower = number + 1;
+          item.textContent = `${number} ↑`;
+          setFeedback('hint', '↑', `Моё число больше ${number}`, 'Выбирай число среди подсвеченных плиток.');
+          playHint('higher');
+        } else {
+          upper = number - 1;
+          item.textContent = `${number} ↓`;
+          setFeedback('hint', '↓', `Моё число меньше ${number}`, 'Выбирай число среди подсвеченных плиток.');
+          playHint('lower');
+        }
+        history.prepend(item);
+        updateBoard();
+      }
+
+      function reset(withSound = false) {
+        gameCard.querySelectorAll('.confetti').forEach(piece => piece.remove());
+        if (withSound) playNewGame();
+        secret = randomNumber();
+        attempts = 0;
+        lower = 1;
+        upper = MAX;
+        won = false;
+        lastGuess = null;
+        attemptsEl.textContent = '0';
+        bestEl.textContent = bestScore() ?? '—';
+        historyCount.textContent = '0 попыток';
+        history.innerHTML = '<li class="empty">Здесь появятся выбранные числа</li>';
+        setFeedback('', '✦', 'Число уже загадано. Твой ход!', 'После выбора я подскажу, куда двигаться.');
+        updateBoard();
+      }
+
+      for (let number = 1; number <= MAX; number++) {
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'number';
+        tile.textContent = number;
+        tile.setAttribute('aria-label', `Число ${number}`);
+        tile.addEventListener('click', () => guess(number));
+        grid.append(tile);
+        tiles.push(tile);
+      }
+      soundToggle.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundToggle.setAttribute('aria-pressed', String(soundEnabled));
+        soundToggle.setAttribute('aria-label', soundEnabled ? 'Отключить звук' : 'Включить звук');
+        soundIcon.textContent = soundEnabled ? '♫' : '♪';
+        soundLabel.textContent = soundEnabled ? 'Звук включён' : 'Звук выключен';
+      });
+      newGame.addEventListener('click', () => reset(true));
+      reset();
+    })();
+  </script>
+</body>
+</html>
